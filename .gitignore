@@ -6,3 +6,5 @@ passages*.jsonl
 batches/
 *.log
 results_e5large_2026-10-21.txt
+.pytest_cache/
+*.tmp

@@ -6,17 +6,20 @@ No instruction prefix: the model card documents none. Text is cut at max_length 
 
 import numpy as np
 
+from models import REVISIONS
+
 MODEL = "juliensimon/Octen-Embedding-0.6B-mlx-8bit"
 _state = {}
 
 
 def embed(texts, max_length=1024, batch=8):
-    """Embed a list of texts and return a (len(texts), 1024) float32 array, in the order given."""
+    """Embed a list of texts and return a (len(texts), dim) float32 array, in the order given."""
     import mlx.core as mx
     from mlx_embeddings import load
+    from mlx_embeddings.utils import get_model_path
 
     if "model" not in _state:
-        _state["model"], _state["tok"] = load(MODEL)
+        _state["model"], _state["tok"] = load(str(get_model_path(MODEL, REVISIONS[MODEL])))
     model, tok = _state["model"], _state["tok"]
     order = sorted(range(len(texts)), key=lambda i: len(texts[i]))  # similar lengths together: little padding
     out = [None] * len(texts)

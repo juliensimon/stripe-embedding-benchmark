@@ -12,9 +12,11 @@ are skipped. The 1024 row uses the real dimensions=1024 call when its cache exis
 otherwise cuts and renormalizes the 3072 vectors. All other embeddings are cached in cache/ too, so a rerun is free.
 """
 
+import argparse
 import glob
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -24,11 +26,10 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import octen_mlx  # noqa: E402
+from models import REVISIONS  # noqa: E402
 
 CACHE = HERE / "cache"
-CACHE.mkdir(exist_ok=True)
-LANGS = [a for a in sys.argv[1:] if not a.startswith("--")] or ["en"]
-CALL_OPENAI = "--call-openai" in sys.argv
+CALL_OPENAI = False  # set by main(); the only switch that allows a paid call
 TASK = "Given a question about Stripe documentation, retrieve the passage that answers it"
 
 
@@ -50,7 +51,7 @@ def st(name, query=lambda t: t, passage=lambda t: t, **kw):
     def run(q, p):
         from sentence_transformers import SentenceTransformer
 
-        m = SentenceTransformer(name, **kw)
+        m = SentenceTransformer(name, revision=REVISIONS[name], **kw)
         return norm(m.encode([query(t) for t in q], batch_size=16)), norm(m.encode([passage(t) for t in p], batch_size=16))
 
     return run
@@ -65,8 +66,6 @@ def openai_large(dimensions=None):
     EMBEDDING_MODEL (default text-embedding-3-large) from the environment. Costs money: about $0.13 per million tokens."""
 
     def run(q, p):
-        import os
-
         from openai import OpenAI
 
         c = OpenAI()
@@ -89,60 +88,72 @@ LEFT = {"tokenizer_kwargs": {"padding_side": "left"}}
 QWEN_INSTRUCT = lambda t: f"Instruct: {TASK}\nQuery:{t}"  # noqa: E731  the format on the Qwen3-Embedding model card
 E5_INSTRUCT = lambda t: f"Instruct: {TASK}\nQuery: {t}"  # noqa: E731  the format on the multilingual-e5-large-instruct card
 
-# label: (cache key, function, vector size cut to). Without a cache of the real dimensions=1024 call,
-# the 1024 row cuts and renormalizes the 3072 vectors.
+# label: (cache key, function). Without a cache of the real dimensions=1024 call, the 1024 row cuts and renormalizes the 3072 vectors.
 MODELS = {
     "multilingual-e5-large-instruct (instruction on questions)": (
         "e5instruct",
         st("intfloat/multilingual-e5-large-instruct", query=E5_INSTRUCT),
-        None,
     ),
     "multilingual-e5-large (query:/passage: prefixes)": (
         "e5large",
         st("intfloat/multilingual-e5-large", query=lambda t: f"query: {t}", passage=lambda t: f"passage: {t}"),
-        None,
     ),
-    "Qwen3-Embedding-0.6B base, no instruction": ("qwen3", st("Qwen/Qwen3-Embedding-0.6B", **LEFT), None),
-    "Qwen3-Embedding-0.6B base, with instruction": ("qwen3i", st("Qwen/Qwen3-Embedding-0.6B", query=QWEN_INSTRUCT, **LEFT), None),
-    "Octen-0.6B original (torch, 32k context)": ("octenst", st("Octen/Octen-Embedding-0.6B", **LEFT), None),
-    "Octen-0.6B 8-bit MLX, 1,024 tokens": ("octen", octen(1024), None),
-    "Octen-0.6B 8-bit MLX, 512 tokens": ("octen512", octen(512), None),
-    "Octen-0.6B 8-bit MLX, 8,192 tokens": ("octenlong", octen(8192), None),
-    "OpenAI 3-large at 1024": ("openai1024", openai_large(1024), None),
-    "OpenAI 3-large at 3072": ("openai", openai_large(), None),
+    "Qwen3-Embedding-0.6B base, no instruction": ("qwen3", st("Qwen/Qwen3-Embedding-0.6B", **LEFT)),
+    "Qwen3-Embedding-0.6B base, with instruction": ("qwen3i", st("Qwen/Qwen3-Embedding-0.6B", query=QWEN_INSTRUCT, **LEFT)),
+    "Octen-0.6B original (torch, 32k context)": ("octenst", st("Octen/Octen-Embedding-0.6B", **LEFT)),
+    "Octen-0.6B 8-bit MLX, 1,024 tokens": ("octen", octen(1024)),
+    "Octen-0.6B 8-bit MLX, 512 tokens": ("octen512", octen(512)),
+    "Octen-0.6B 8-bit MLX, 8,192 tokens": ("octenlong", octen(8192)),
+    "OpenAI 3-large at 1024": ("openai1024", openai_large(1024)),
+    "OpenAI 3-large at 3072": ("openai", openai_large()),
 }
 REF = "Octen-0.6B 8-bit MLX, 1,024 tokens"
 PAID = "OpenAI 3-large at 3072"
 
 
+def save_npz(f, **arrays):
+    """Write to a temporary file and rename, so an interrupted run never leaves a corrupt cache."""
+    tmp = f.with_name(f.name + ".tmp")
+    with open(tmp, "wb") as fh:
+        np.savez(fh, **arrays)
+    os.replace(tmp, f)
+
+
 def cached(lang, key, fn, q, p):
-    """Return (query vectors, passage vectors). The cache stores a hash of the texts and refuses vectors for other texts."""
+    """Return (query vectors, passage vectors). The cache stores a hash of the texts and refuses vectors for other texts.
+    A key that starts with "openai" reaches fn, the paid call, only when --call-openai was given."""
     f = CACHE / f"stripe_{lang}_{key}.npz"
     hq, hp = sha(q), sha(p)
     if f.exists():
         d = np.load(f)
-        if "hq" in d and (str(d["hq"]) != hq or str(d["hp"]) != hp):
+        if "hq" not in d or str(d["hq"]) != hq or str(d["hp"]) != hp:
             sys.exit(f"{f.name} was built from other texts than the current passages and questions: delete it to rebuild")
-        if d["q"].shape[0] == len(q) and d["a"].shape[0] == len(p):
-            if "hq" not in d:  # first run with hashes: stamp a cache made before this check existed
-                np.savez(f, q=d["q"], a=d["a"], hq=hq, hp=hp)
-            return d["q"], d["a"]
-    elif key == "openai1024" and (CACHE / f"stripe_{lang}_openai.npz").exists() and not CALL_OPENAI:
-        d = np.load(CACHE / f"stripe_{lang}_openai.npz")  # no real dimensions=1024 call yet: cut the 3072 vectors
-        return norm(d["q"][:, :1024]), norm(d["a"][:, :1024])
-    elif key.startswith("openai") and not CALL_OPENAI:
-        return None, None
+        return d["q"], d["a"]
+    if key.startswith("openai"):
+        base = CACHE / f"stripe_{lang}_openai.npz"
+        if key == "openai1024" and base.exists():  # no real dimensions=1024 call yet: cut the 3072 vectors
+            d = np.load(base)
+            if "hq" not in d or str(d["hq"]) != hq or str(d["hp"]) != hp:
+                sys.exit(f"{base.name} was built from other texts than the current passages and questions: delete it to rebuild")
+            return norm(d["q"][:, :1024]), norm(d["a"][:, :1024])
+        if not CALL_OPENAI:
+            return None, None
     qv, pv = fn(q, p)
-    np.savez(f, q=qv, a=pv, hq=hq, hp=hp)
+    save_npz(f, q=qv, a=pv, hq=hq, hp=hp)
     return qv, pv
 
 
-for lang in LANGS:
-    corpus = [json.loads(x) for x in open(HERE / ("passages.jsonl" if lang == "en" else f"passages_{lang}.jsonl"), encoding="utf-8")]
+def read_jsonl(path):
+    with open(path, encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh]
+
+
+def score_language(lang):
+    corpus = read_jsonl(HERE / ("passages.jsonl" if lang == "en" else f"passages_{lang}.jsonl"))
     where = {(r["url"], r["section"], hashlib.sha256(r["text"].encode("utf-8")).hexdigest()[:16]): i for i, r in enumerate(corpus)}
     qs, dropped = [], 0
     for f in sorted(glob.glob(str(HERE / "questions" / f"{lang}_*.jsonl"))):
-        for r in map(json.loads, open(f, encoding="utf-8")):
+        for r in read_jsonl(f):
             if r.get("skip"):
                 continue
             if (r["url"], r["section"], r["sha"]) in where:
@@ -175,13 +186,11 @@ for lang in LANGS:
     rng = np.random.default_rng(0)
     boot = rng.integers(0, len(qs), size=(1000, len(qs)))
     res, sec1 = {}, {}
-    for label, (key, fn, cut) in MODELS.items():
+    for label, (key, fn) in MODELS.items():
         q, p = cached(lang, key, fn, q_texts, p_texts)
         if q is None:
             print(f"{label}: skipped (no cached OpenAI vectors; --call-openai fetches them and costs money)")
             continue
-        if cut:
-            q, p = norm(q[:, :cut]), norm(p[:, :cut])
         sims = q @ p.T
         order = (-sims).argsort(1)
         pos = (order == gold[:, None]).argmax(1)
@@ -213,4 +222,21 @@ for lang in LANGS:
             d = ((res[REF] < k).astype(int)[boot] - (res[PAID] < k).astype(int)[boot]).mean(1)
             line += f"  top{k} [{np.percentile(d, 2.5):+.1%}, {np.percentile(d, 97.5):+.1%}]"
         print(line)
-    json.dump({n: res[n].tolist() for n in res}, open(HERE / f"ranks_{lang}.json", "w"))
+    with open(HERE / f"ranks_{lang}.json", "w") as fh:
+        json.dump({n: res[n].tolist() for n in res}, fh)
+
+
+def main():
+    global CALL_OPENAI
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("langs", nargs="*", default=["en"], choices=["en", "fr", "de", "es"], metavar="lang", help="en fr de es (default en)")
+    ap.add_argument("--call-openai", action="store_true", help="fetch OpenAI embeddings that are not cached (costs money)")
+    args = ap.parse_args()
+    CALL_OPENAI = args.call_openai
+    CACHE.mkdir(exist_ok=True)
+    for lang in args.langs:
+        score_language(lang)
+
+
+if __name__ == "__main__":
+    main()

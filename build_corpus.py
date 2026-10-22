@@ -1,7 +1,7 @@
 """Fetch the Stripe docs listed in https://docs.stripe.com/llms.txt as Markdown and cut them into passages.
 
 Usage: python3 build_corpus.py [lang]   lang = en (default), fr, de, es, it. Downloads once into pages[_lang]/, rerun is free.
-Stripe picks the locale from Accept-Language and falls back to French for languages it does not serve (nl).
+Stripe picks the locale from Accept-Language and falls back to French for languages it does not serve (nl, so nl is refused).
 Writes pages[_lang]/*.md and passages[_lang].jsonl {pid, url, title, section, text}. Both are gitignored copies of public docs:
 re-fetch on recording day, do not redistribute.
 """
@@ -15,6 +15,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 LANG = sys.argv[1] if len(sys.argv) > 1 else "en"
+if LANG not in ("en", "fr", "de", "es", "it"):
+    sys.exit(f"unsupported language {LANG!r}: use en, fr, de, es or it")
 SUFFIX = "" if LANG == "en" else f"_{LANG}"
 LOCALE = {"en": "en-US", "fr": "fr-FR", "de": "de-DE", "es": "es-ES", "it": "it-IT"}[LANG]
 PAGES = HERE / f"pages{SUFFIX}"
@@ -23,10 +25,16 @@ INDEX = "https://docs.stripe.com/llms.txt"  # the English index lists the page U
 MIN_WORDS, MAX_WORDS = 60, 450
 
 
-def get(url):
+def get(url, tries=3):
     req = urllib.request.Request(url, headers={"User-Agent": "julien-embedding-eval/1.0", "Accept-Language": f"{LOCALE},{LANG};q=0.9"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read().decode("utf-8")
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read().decode("utf-8")
+        except OSError:  # URLError, HTTPError and timeouts: retry with a growing pause, then raise
+            if attempt == tries - 1:
+                raise
+            time.sleep(2**attempt)
 
 
 def slug(url):
@@ -37,20 +45,26 @@ def fetch_pages():
     index = get(INDEX)
     urls = sorted(set(re.findall(r"\((https://docs\.stripe\.com/[^)\s]+?\.md)(?:#[^)]*)?\)", index)))
     urls = [u for u in urls if "/api/" not in u and not u.endswith("/api.md")]  # the API reference is generated, not prose
+    failed = []
     for u in urls:
         f = PAGES / f"{slug(u)}.md"
         if f.exists():
             continue
         try:
             f.write_text(get(u), encoding="utf-8")
-        except Exception as e:  # noqa: BLE001
+        except OSError as e:
+            failed.append(u)
             print("skip", u, e)
         time.sleep(0.2)
+    if failed:
+        print(
+            f"WARNING: {len(failed)} of {len(urls)} pages could not be fetched; the corpus is smaller than the index. Rerun to retry them."
+        )
     return urls
 
 
 def split(text):
-    """Split on level-2 headings, then on blank lines when a section is too long."""
+    """Split on level-2 headings, then on blank lines (paragraphs) when a section is over MAX_WORDS."""
     title = (re.match(r"#\s+(.+)", text) or [None, ""])[1]
     parts = re.split(r"\n(?=## )", text)
     for part in parts:

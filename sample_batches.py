@@ -1,7 +1,7 @@
 """Sample passages (seed 42) and cut them into batches of 100 for the question writers.
 
 Usage: python3 sample_batches.py          writes batches/<lang>_NN.jsonl {pid, title, section, text}
-en 1000, fr/de/es 300 each (es has only 527 passages in total: Stripe translated about 120 pages). The whole language corpus is still
+en 1000, fr/de/es 300 each (es has only 522 passages in total: Stripe translated about 120 pages). The whole language corpus is still
 the search space at scoring time, the sample only decides which passages get a question.
 """
 

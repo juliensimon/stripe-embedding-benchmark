@@ -38,10 +38,14 @@ if a.model == "octen":
 else:
     from sentence_transformers import SentenceTransformer
 
-    task = "Given a question about Stripe documentation, retrieve the passage that answers it"
-    q = norm(SentenceTransformer("intfloat/multilingual-e5-large-instruct").encode([f"Instruct: {task}\nQuery: {a.question}"]))
+    from models import REVISIONS
 
-corpus = [json.loads(x) for x in open(HERE / ("passages.jsonl" if a.lang == "en" else f"passages_{a.lang}.jsonl"), encoding="utf-8")]
+    name = "intfloat/multilingual-e5-large-instruct"
+    task = "Given a question about Stripe documentation, retrieve the passage that answers it"
+    q = norm(SentenceTransformer(name, revision=REVISIONS[name]).encode([f"Instruct: {task}\nQuery: {a.question}"]))
+
+with open(HERE / ("passages.jsonl" if a.lang == "en" else f"passages_{a.lang}.jsonl"), encoding="utf-8") as fh:
+    corpus = [json.loads(x) for x in fh]
 cache = np.load(HERE / "cache" / f"stripe_{a.lang}_{a.model}.npz")
 vecs = cache["a"]
 h = hashlib.sha256()
@@ -55,4 +59,4 @@ print(f"\n{a.question}\n({a.model}, {a.lang}, {len(corpus)} passages)\n")
 for rank, i in enumerate(np.argsort(-sims)[: a.top], 1):
     p = corpus[i]
     body = " ".join(p["text"].split())
-    print(f"{rank}. {sims[i]:.3f}  {p['title']}: {p['section']}\n   {p['url']}\n   {body[:220]}...\n")
+    print(f"{rank}. {sims[i]:.3f}  {p['title']}: {p['section']}\n   {p['url']}\n   {body[:220]}{'...' if len(body) > 220 else ''}\n")
