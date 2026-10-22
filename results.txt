@@ -1,0 +1,133 @@
+# stripe/score.py en fr de es, measured 2026-10-21 and 2026-10-22 (cached OpenAI vectors; the 1024 row is the 3072 vector cut and renormalized)
+
+=== en: 863 questions (0 dropped: passage changed or gone), 2329 passages ===
+37% of gold passages have a sibling chunk from the same section; 71% have 350 words or fewer; 535 questions share no 4-word run with their passage
+multilingual-e5-large-instruct (instruction on questions)  top1  60.1%  top5  86.8%  top10  93.0%  dim 1024  | same section top1  64.9%  | gold <=350 words top1  63.9%, longer  50.8%  | no-overlap (n=535) top1  59.4% top5  86.0%
+multilingual-e5-large (query:/passage: prefixes)           top1  66.7%  top5  90.6%  top10  94.4%  dim 1024  | same section top1  70.6%  | gold <=350 words top1  72.0%, longer  53.6%  | no-overlap (n=535) top1  64.3% top5  89.3%
+Qwen3-Embedding-0.6B base, no instruction                  top1  57.8%  top5  85.5%  top10  91.2%  dim 1024  | same section top1  62.5%  | gold <=350 words top1  61.6%, longer  48.4%  | no-overlap (n=535) top1  55.0% top5  85.2%
+Qwen3-Embedding-0.6B base, with instruction                top1  64.3%  top5  89.6%  top10  95.0%  dim 1024  | same section top1  69.2%  | gold <=350 words top1  67.6%, longer  56.0%  | no-overlap (n=535) top1  62.6% top5  89.9%
+Octen-0.6B original (torch, 32k context)                   top1  65.5%  top5  91.4%  top10  95.6%  dim 1024  | same section top1  70.6%  | gold <=350 words top1  69.8%, longer  54.8%  | no-overlap (n=535) top1  64.5% top5  91.0%
+Octen-0.6B 8-bit MLX, 1,024 tokens                         top1  65.9%  top5  91.5%  top10  95.6%  dim 1024  | same section top1  70.8%  | gold <=350 words top1  70.1%, longer  55.6%  | no-overlap (n=535) top1  64.9% top5  91.6%
+Octen-0.6B 8-bit MLX, 512 tokens                           top1  67.8%  top5  92.1%  top10  95.4%  dim 1024  | same section top1  72.0%  | gold <=350 words top1  69.9%, longer  62.5%  | no-overlap (n=535) top1  66.7% top5  92.0%
+Octen-0.6B 8-bit MLX, 8,192 tokens                         top1  65.7%  top5  91.8%  top10  95.5%  dim 1024  | same section top1  70.9%  | gold <=350 words top1  70.1%, longer  54.8%  | no-overlap (n=535) top1  64.5% top5  91.8%
+OpenAI 3-large at 1024                                     top1  64.3%  top5  88.9%  top10  93.9%  dim 1024  | same section top1  69.6%  | gold <=350 words top1  68.6%, longer  53.6%  | no-overlap (n=535) top1  63.9% top5  88.6%
+OpenAI 3-large at 3072                                     top1  64.9%  top5  90.6%  top10  94.6%  dim 3072  | same section top1  70.0%  | gold <=350 words top1  69.9%, longer  52.4%  | no-overlap (n=535) top1  63.9% top5  91.0%
+bootstrap: the questions are redrawn at random with repeats, 1,000 times; gap (A minus B) on top-1 and top-5, 95% interval
+primary comparisons: every row against Octen 1,024 and against OpenAI 3072. Every other difference is exploratory.
+  multilingual-e5-large-instruct (instruction on questions) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-9.5%, -2.4%]  top5 [-6.8%, -2.5%]
+  multilingual-e5-large (query:/passage: prefixes) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-2.9%, +4.3%]  top5 [-3.1%, +1.3%]
+  Qwen3-Embedding-0.6B base, no instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-10.8%, -5.6%]  top5 [-8.0%, -4.4%]
+  Qwen3-Embedding-0.6B base, with instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-4.4%, +1.0%]  top5 [-3.8%, -0.3%]
+  Octen-0.6B original (torch, 32k context) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-1.3%, +0.3%]  top5 [-0.8%, +0.6%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [+0.5%, +3.2%]  top5 [-0.5%, +1.5%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-0.6%, +0.0%]  top5 [-0.2%, +0.8%]
+  OpenAI 3-large at 1024 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-5.1%, +1.6%]  top5 [-4.9%, -0.6%]
+  OpenAI 3-large at 3072 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-4.5%, +2.3%]  top5 [-2.9%, +1.0%]
+  multilingual-e5-large-instruct (instruction on questions) vs OpenAI 3-large at 3072:  top1 [-8.2%, -1.4%]  top5 [-6.1%, -1.4%]
+  multilingual-e5-large (query:/passage: prefixes) vs OpenAI 3-large at 3072:  top1 [-1.5%, +5.2%]  top5 [-2.2%, +2.3%]
+  Qwen3-Embedding-0.6B base, no instruction vs OpenAI 3-large at 3072:  top1 [-10.8%, -3.6%]  top5 [-7.5%, -2.7%]
+  Qwen3-Embedding-0.6B base, with instruction vs OpenAI 3-large at 3072:  top1 [-4.1%, +3.0%]  top5 [-3.4%, +1.3%]
+  Octen-0.6B original (torch, 32k context) vs OpenAI 3-large at 3072:  top1 [-2.7%, +3.9%]  top5 [-1.2%, +2.9%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs OpenAI 3-large at 3072:  top1 [-0.5%, +6.5%]  top5 [-0.6%, +3.6%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs OpenAI 3-large at 3072:  top1 [-2.5%, +4.3%]  top5 [-0.9%, +3.2%]
+  OpenAI 3-large at 1024 vs OpenAI 3-large at 3072:  top1 [-1.7%, +0.7%]  top5 [-3.0%, -0.6%]
+  Octen-0.6B 8-bit MLX, 1,024 tokens vs OpenAI 3-large at 3072:  top1 [-2.3%, +4.5%]  top5 [-1.0%, +2.9%]
+
+=== fr: 251 questions (0 dropped: passage changed or gone), 2375 passages ===
+37% of gold passages have a sibling chunk from the same section; 70% have 350 words or fewer; 161 questions share no 4-word run with their passage
+multilingual-e5-large-instruct (instruction on questions)  top1  51.8%  top5  82.9%  top10  89.2%  dim 1024  | same section top1  58.2%  | gold <=350 words top1  56.2%, longer  41.3%  | no-overlap (n=161) top1  46.6% top5  82.0%
+multilingual-e5-large (query:/passage: prefixes)           top1  53.4%  top5  83.3%  top10  90.8%  dim 1024  | same section top1  60.2%  | gold <=350 words top1  58.5%, longer  41.3%  | no-overlap (n=161) top1  49.7% top5  79.5%
+Qwen3-Embedding-0.6B base, no instruction                  top1  54.6%  top5  81.3%  top10  89.6%  dim 1024  | same section top1  60.2%  | gold <=350 words top1  56.8%, longer  49.3%  | no-overlap (n=161) top1  49.7% top5  76.4%
+Qwen3-Embedding-0.6B base, with instruction                top1  50.2%  top5  82.1%  top10  87.6%  dim 1024  | same section top1  57.4%  | gold <=350 words top1  49.4%, longer  52.0%  | no-overlap (n=161) top1  47.2% top5  79.5%
+Octen-0.6B original (torch, 32k context)                   top1  57.4%  top5  83.7%  top10  90.4%  dim 1024  | same section top1  64.1%  | gold <=350 words top1  60.8%, longer  49.3%  | no-overlap (n=161) top1  54.0% top5  80.1%
+Octen-0.6B 8-bit MLX, 1,024 tokens                         top1  57.8%  top5  85.3%  top10  90.8%  dim 1024  | same section top1  64.5%  | gold <=350 words top1  61.4%, longer  49.3%  | no-overlap (n=161) top1  54.0% top5  82.0%
+Octen-0.6B 8-bit MLX, 512 tokens                           top1  58.2%  top5  85.7%  top10  92.8%  dim 1024  | same section top1  64.5%  | gold <=350 words top1  61.9%, longer  49.3%  | no-overlap (n=161) top1  54.7% top5  80.7%
+Octen-0.6B 8-bit MLX, 8,192 tokens                         top1  58.2%  top5  84.9%  top10  90.8%  dim 1024  | same section top1  64.9%  | gold <=350 words top1  61.4%, longer  50.7%  | no-overlap (n=161) top1  54.0% top5  81.4%
+OpenAI 3-large at 1024                                     top1  51.0%  top5  83.3%  top10  90.0%  dim 1024  | same section top1  59.4%  | gold <=350 words top1  57.4%, longer  36.0%  | no-overlap (n=161) top1  49.1% top5  81.4%
+OpenAI 3-large at 3072                                     top1  54.2%  top5  83.7%  top10  88.8%  dim 3072  | same section top1  62.9%  | gold <=350 words top1  63.1%, longer  33.3%  | no-overlap (n=161) top1  52.8% top5  82.0%
+bootstrap: the questions are redrawn at random with repeats, 1,000 times; gap (A minus B) on top-1 and top-5, 95% interval
+primary comparisons: every row against Octen 1,024 and against OpenAI 3072. Every other difference is exploratory.
+  multilingual-e5-large-instruct (instruction on questions) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-12.4%, +0.8%]  top5 [-7.6%, +2.4%]
+  multilingual-e5-large (query:/passage: prefixes) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-10.8%, +2.0%]  top5 [-7.2%, +3.2%]
+  Qwen3-Embedding-0.6B base, no instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-6.8%, +0.4%]  top5 [-7.6%, -0.8%]
+  Qwen3-Embedding-0.6B base, with instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-12.7%, -2.4%]  top5 [-7.2%, +0.4%]
+  Octen-0.6B original (torch, 32k context) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-2.0%, +0.8%]  top5 [-3.2%, +0.0%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-2.0%, +2.8%]  top5 [-2.4%, +3.2%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [+0.0%, +1.2%]  top5 [-1.2%, +0.0%]
+  OpenAI 3-large at 1024 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-12.4%, -0.8%]  top5 [-6.4%, +2.4%]
+  OpenAI 3-large at 3072 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-9.6%, +2.8%]  top5 [-6.0%, +3.2%]
+  multilingual-e5-large-instruct (instruction on questions) vs OpenAI 3-large at 3072:  top1 [-9.2%, +4.0%]  top5 [-6.4%, +4.8%]
+  multilingual-e5-large (query:/passage: prefixes) vs OpenAI 3-large at 3072:  top1 [-7.2%, +6.0%]  top5 [-5.6%, +5.2%]
+  Qwen3-Embedding-0.6B base, no instruction vs OpenAI 3-large at 3072:  top1 [-6.0%, +6.8%]  top5 [-7.2%, +2.4%]
+  Qwen3-Embedding-0.6B base, with instruction vs OpenAI 3-large at 3072:  top1 [-10.4%, +2.8%]  top5 [-6.8%, +3.6%]
+  Octen-0.6B original (torch, 32k context) vs OpenAI 3-large at 3072:  top1 [-2.8%, +9.2%]  top5 [-5.2%, +4.8%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs OpenAI 3-large at 3072:  top1 [-2.0%, +10.0%]  top5 [-3.2%, +7.2%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs OpenAI 3-large at 3072:  top1 [-2.0%, +10.0%]  top5 [-4.0%, +5.6%]
+  OpenAI 3-large at 1024 vs OpenAI 3-large at 3072:  top1 [-6.0%, -0.8%]  top5 [-2.4%, +1.6%]
+  Octen-0.6B 8-bit MLX, 1,024 tokens vs OpenAI 3-large at 3072:  top1 [-2.8%, +9.6%]  top5 [-3.2%, +6.0%]
+
+=== de: 271 questions (0 dropped: passage changed or gone), 1991 passages ===
+34% of gold passages have a sibling chunk from the same section; 71% have 350 words or fewer; 217 questions share no 4-word run with their passage
+multilingual-e5-large-instruct (instruction on questions)  top1  57.2%  top5  86.0%  top10  93.0%  dim 1024  | same section top1  62.4%  | gold <=350 words top1  65.6%, longer  36.7%  | no-overlap (n=217) top1  59.0% top5  85.7%
+multilingual-e5-large (query:/passage: prefixes)           top1  67.5%  top5  91.9%  top10  94.8%  dim 1024  | same section top1  72.0%  | gold <=350 words top1  75.0%, longer  49.4%  | no-overlap (n=217) top1  66.4% top5  91.2%
+Qwen3-Embedding-0.6B base, no instruction                  top1  60.1%  top5  85.2%  top10  92.3%  dim 1024  | same section top1  65.3%  | gold <=350 words top1  66.1%, longer  45.6%  | no-overlap (n=217) top1  59.0% top5  85.3%
+Qwen3-Embedding-0.6B base, with instruction                top1  57.9%  top5  84.5%  top10  89.7%  dim 1024  | same section top1  62.7%  | gold <=350 words top1  61.5%, longer  49.4%  | no-overlap (n=217) top1  57.6% top5  85.3%
+Octen-0.6B original (torch, 32k context)                   top1  60.9%  top5  86.7%  top10  91.9%  dim 1024  | same section top1  65.3%  | gold <=350 words top1  67.2%, longer  45.6%  | no-overlap (n=217) top1  59.4% top5  87.1%
+Octen-0.6B 8-bit MLX, 1,024 tokens                         top1  62.4%  top5  87.1%  top10  91.5%  dim 1024  | same section top1  66.4%  | gold <=350 words top1  67.2%, longer  50.6%  | no-overlap (n=217) top1  61.3% top5  87.6%
+Octen-0.6B 8-bit MLX, 512 tokens                           top1  63.5%  top5  89.7%  top10  93.0%  dim 1024  | same section top1  67.2%  | gold <=350 words top1  67.7%, longer  53.2%  | no-overlap (n=217) top1  62.7% top5  88.9%
+Octen-0.6B 8-bit MLX, 8,192 tokens                         top1  61.3%  top5  87.1%  top10  91.9%  dim 1024  | same section top1  66.1%  | gold <=350 words top1  67.2%, longer  46.8%  | no-overlap (n=217) top1  60.4% top5  87.6%
+OpenAI 3-large at 1024                                     top1  57.2%  top5  84.1%  top10  90.0%  dim 1024  | same section top1  62.7%  | gold <=350 words top1  64.6%, longer  39.2%  | no-overlap (n=217) top1  57.6% top5  83.4%
+OpenAI 3-large at 3072                                     top1  58.7%  top5  84.5%  top10  91.1%  dim 3072  | same section top1  64.2%  | gold <=350 words top1  65.6%, longer  41.8%  | no-overlap (n=217) top1  58.5% top5  84.3%
+bootstrap: the questions are redrawn at random with repeats, 1,000 times; gap (A minus B) on top-1 and top-5, 95% interval
+primary comparisons: every row against Octen 1,024 and against OpenAI 3072. Every other difference is exploratory.
+  multilingual-e5-large-instruct (instruction on questions) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-11.1%, +0.7%]  top5 [-5.2%, +3.0%]
+  multilingual-e5-large (query:/passage: prefixes) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-0.7%, +11.1%]  top5 [+1.1%, +8.5%]
+  Qwen3-Embedding-0.6B base, no instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-5.5%, +1.5%]  top5 [-4.1%, +0.4%]
+  Qwen3-Embedding-0.6B base, with instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-9.6%, +0.4%]  top5 [-5.9%, +0.7%]
+  Octen-0.6B original (torch, 32k context) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-3.3%, +0.0%]  top5 [-1.1%, +0.0%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-1.8%, +4.1%]  top5 [+0.4%, +4.8%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-2.6%, +0.0%]  top5 [+0.0%, +0.0%]
+  OpenAI 3-large at 1024 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-11.4%, +0.7%]  top5 [-7.7%, +1.5%]
+  OpenAI 3-large at 3072 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-10.0%, +1.8%]  top5 [-6.7%, +1.5%]
+  multilingual-e5-large-instruct (instruction on questions) vs OpenAI 3-large at 3072:  top1 [-7.7%, +4.8%]  top5 [-2.6%, +6.3%]
+  multilingual-e5-large (query:/passage: prefixes) vs OpenAI 3-large at 3072:  top1 [+2.6%, +15.1%]  top5 [+3.3%, +11.8%]
+  Qwen3-Embedding-0.6B base, no instruction vs OpenAI 3-large at 3072:  top1 [-4.4%, +7.7%]  top5 [-3.3%, +5.2%]
+  Qwen3-Embedding-0.6B base, with instruction vs OpenAI 3-large at 3072:  top1 [-7.4%, +5.9%]  top5 [-4.4%, +4.4%]
+  Octen-0.6B original (torch, 32k context) vs OpenAI 3-large at 3072:  top1 [-3.7%, +8.5%]  top5 [-1.8%, +6.6%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs OpenAI 3-large at 3072:  top1 [-1.5%, +11.1%]  top5 [+1.1%, +9.2%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs OpenAI 3-large at 3072:  top1 [-3.3%, +8.9%]  top5 [-1.5%, +6.7%]
+  OpenAI 3-large at 1024 vs OpenAI 3-large at 3072:  top1 [-3.7%, +0.4%]  top5 [-2.2%, +1.5%]
+  Octen-0.6B 8-bit MLX, 1,024 tokens vs OpenAI 3-large at 3072:  top1 [-1.8%, +10.0%]  top5 [-1.5%, +6.7%]
+
+=== es: 241 questions (0 dropped: passage changed or gone), 522 passages ===
+49% of gold passages have a sibling chunk from the same section; 58% have 350 words or fewer; 138 questions share no 4-word run with their passage
+multilingual-e5-large-instruct (instruction on questions)  top1  63.9%  top5  89.6%  top10  93.8%  dim 1024  | same section top1  74.3%  | gold <=350 words top1  72.1%, longer  52.5%  | no-overlap (n=138) top1  58.7% top5  86.2%
+multilingual-e5-large (query:/passage: prefixes)           top1  72.6%  top5  92.1%  top10  95.9%  dim 1024  | same section top1  80.5%  | gold <=350 words top1  78.6%, longer  64.4%  | no-overlap (n=138) top1  67.4% top5  89.1%
+Qwen3-Embedding-0.6B base, no instruction                  top1  67.6%  top5  91.7%  top10  96.3%  dim 1024  | same section top1  75.9%  | gold <=350 words top1  75.0%, longer  57.4%  | no-overlap (n=138) top1  62.3% top5  88.4%
+Qwen3-Embedding-0.6B base, with instruction                top1  63.9%  top5  87.1%  top10  95.0%  dim 1024  | same section top1  72.6%  | gold <=350 words top1  70.0%, longer  55.4%  | no-overlap (n=138) top1  61.6% top5  87.0%
+Octen-0.6B original (torch, 32k context)                   top1  71.0%  top5  93.8%  top10  97.5%  dim 1024  | same section top1  79.7%  | gold <=350 words top1  80.0%, longer  58.4%  | no-overlap (n=138) top1  66.7% top5  90.6%
+Octen-0.6B 8-bit MLX, 1,024 tokens                         top1  70.5%  top5  93.4%  top10  97.5%  dim 1024  | same section top1  79.3%  | gold <=350 words top1  79.3%, longer  58.4%  | no-overlap (n=138) top1  66.7% top5  90.6%
+Octen-0.6B 8-bit MLX, 512 tokens                           top1  71.0%  top5  92.9%  top10  97.1%  dim 1024  | same section top1  78.8%  | gold <=350 words top1  77.9%, longer  61.4%  | no-overlap (n=138) top1  67.4% top5  91.3%
+Octen-0.6B 8-bit MLX, 8,192 tokens                         top1  70.5%  top5  93.8%  top10  97.5%  dim 1024  | same section top1  79.3%  | gold <=350 words top1  79.3%, longer  58.4%  | no-overlap (n=138) top1  66.7% top5  91.3%
+OpenAI 3-large at 1024                                     top1  66.0%  top5  90.9%  top10  95.9%  dim 1024  | same section top1  75.9%  | gold <=350 words top1  77.1%, longer  50.5%  | no-overlap (n=138) top1  63.0% top5  89.1%
+OpenAI 3-large at 3072                                     top1  66.0%  top5  92.9%  top10  96.7%  dim 3072  | same section top1  76.8%  | gold <=350 words top1  77.9%, longer  49.5%  | no-overlap (n=138) top1  63.8% top5  90.6%
+bootstrap: the questions are redrawn at random with repeats, 1,000 times; gap (A minus B) on top-1 and top-5, 95% interval
+primary comparisons: every row against Octen 1,024 and against OpenAI 3072. Every other difference is exploratory.
+  multilingual-e5-large-instruct (instruction on questions) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-12.9%, +0.0%]  top5 [-7.9%, +0.0%]
+  multilingual-e5-large (query:/passage: prefixes) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-3.7%, +7.5%]  top5 [-4.6%, +2.5%]
+  Qwen3-Embedding-0.6B base, no instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-5.8%, -0.4%]  top5 [-4.6%, +0.8%]
+  Qwen3-Embedding-0.6B base, with instruction vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-11.2%, -2.5%]  top5 [-10.4%, -2.5%]
+  Octen-0.6B original (torch, 32k context) vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-0.8%, +1.7%]  top5 [-0.8%, +2.1%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-2.9%, +3.7%]  top5 [-2.5%, +1.7%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [+0.0%, +0.0%]  top5 [+0.0%, +1.2%]
+  OpenAI 3-large at 1024 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-11.6%, +1.7%]  top5 [-6.2%, +0.8%]
+  OpenAI 3-large at 3072 vs Octen-0.6B 8-bit MLX, 1,024 tokens:  top1 [-11.2%, +1.7%]  top5 [-3.7%, +2.5%]
+  multilingual-e5-large-instruct (instruction on questions) vs OpenAI 3-large at 3072:  top1 [-8.3%, +5.0%]  top5 [-7.1%, +0.4%]
+  multilingual-e5-large (query:/passage: prefixes) vs OpenAI 3-large at 3072:  top1 [+0.8%, +13.3%]  top5 [-4.6%, +2.9%]
+  Qwen3-Embedding-0.6B base, no instruction vs OpenAI 3-large at 3072:  top1 [-4.6%, +7.9%]  top5 [-4.6%, +2.1%]
+  Qwen3-Embedding-0.6B base, with instruction vs OpenAI 3-large at 3072:  top1 [-8.3%, +3.7%]  top5 [-10.0%, -1.7%]
+  Octen-0.6B original (torch, 32k context) vs OpenAI 3-large at 3072:  top1 [-1.2%, +10.8%]  top5 [-2.5%, +4.1%]
+  Octen-0.6B 8-bit MLX, 512 tokens vs OpenAI 3-large at 3072:  top1 [-1.2%, +11.2%]  top5 [-3.3%, +3.3%]
+  Octen-0.6B 8-bit MLX, 8,192 tokens vs OpenAI 3-large at 3072:  top1 [-1.7%, +11.2%]  top5 [-2.1%, +4.1%]
+  OpenAI 3-large at 1024 vs OpenAI 3-large at 3072:  top1 [-2.5%, +2.9%]  top5 [-4.1%, -0.4%]
+  Octen-0.6B 8-bit MLX, 1,024 tokens vs OpenAI 3-large at 3072:  top1 [-1.7%, +11.2%]  top5 [-2.5%, +3.7%]

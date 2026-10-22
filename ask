@@ -1,0 +1,3 @@
+#!/bin/sh
+# Wrapper so the demo types `./ask "question" [--lang de] [--model e5instruct]`.
+cd "$(dirname "$0")" && HF_HUB_DISABLE_PROGRESS_BARS=1 exec uv run --quiet python ask.py "$@"
