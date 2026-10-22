@@ -77,7 +77,37 @@ STOP = {
     "en": {"the", "and", "to", "of", "a", "is", "you", "for", "in", "your", "can", "with", "that", "this", "are"},
     "fr": {"le", "la", "les", "de", "des", "et", "un", "une", "vous", "pour", "en", "votre", "que", "est", "dans", "du"},
     "de": {"der", "die", "das", "und", "zu", "ist", "sie", "für", "ihr", "ihre", "mit", "von", "den", "ein", "eine", "im"},
-    "es": {"el", "la", "los", "las", "de", "y", "que", "en", "un", "una", "para", "su", "con", "es", "por", "del", "se", "a", "tu", "tus", "al", "lo", "como", "o", "puedes", "si", "no", "este", "esta"},
+    "es": {
+        "el",
+        "la",
+        "los",
+        "las",
+        "de",
+        "y",
+        "que",
+        "en",
+        "un",
+        "una",
+        "para",
+        "su",
+        "con",
+        "es",
+        "por",
+        "del",
+        "se",
+        "a",
+        "tu",
+        "tus",
+        "al",
+        "lo",
+        "como",
+        "o",
+        "puedes",
+        "si",
+        "no",
+        "este",
+        "esta",
+    },
     "it": {"il", "la", "le", "di", "e", "che", "un", "una", "per", "in", "con", "è", "del", "della", "sono", "i"},
 }[LANG]
 
@@ -103,7 +133,9 @@ if __name__ == "__main__":
         for title, head, text in split(f.read_text(encoding="utf-8")):
             if not keep(text):
                 continue
-            key = re.sub(r"\W+", " ", text.lower())[:400]  # Stripe repeats shared sections on several pages: a duplicate has two right answers
+            key = re.sub(r"\W+", " ", text.lower())[
+                :400
+            ]  # Stripe repeats shared sections on several pages: a duplicate has two right answers
             if key in seen:
                 continue
             seen.add(key)
@@ -113,4 +145,6 @@ if __name__ == "__main__":
         for r in out:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
     w = sorted(len(r["text"].split()) for r in out)
-    print(f"{len(urls)} pages listed, {len(list(PAGES.glob('*.md')))} fetched, {len(out)} passages, words median {w[len(w)//2]} max {w[-1]}")
+    print(
+        f"{len(urls)} pages listed, {len(list(PAGES.glob('*.md')))} fetched, {len(out)} passages, words median {w[len(w) // 2]} max {w[-1]}"
+    )

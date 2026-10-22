@@ -46,7 +46,7 @@ cache = np.load(HERE / "cache" / f"stripe_{a.lang}_{a.model}.npz")
 vecs = cache["a"]
 h = hashlib.sha256()
 for r in corpus:
-    h.update(f"{r['title']}\n{r['text']}".encode("utf-8") + b"\0")
+    h.update(f"{r['title']}\n{r['text']}".encode() + b"\0")
 if len(vecs) != len(corpus) or ("hp" in cache and str(cache["hp"]) != h.hexdigest()[:16]):
     sys.exit("The cached vectors were built from other passages than passages*.jsonl. Rebuild them with score.py.")
 sims = (q @ vecs.T)[0]

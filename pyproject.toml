@@ -3,6 +3,9 @@ name = "stripe-docs-embedding-benchmark"
 version = "0.1.0"
 description = "Does paid embedding beat a free 0.6B model on the Stripe docs? Questions, scoring and a local demo."
 requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Julien Simon" }]
+readme = "README.md"
 # Pinned to the versions the 2026-10-21 numbers were measured with. mlx-embeddings needs Apple silicon.
 dependencies = [
     "numpy",
@@ -13,3 +16,9 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 140
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

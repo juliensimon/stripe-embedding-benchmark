@@ -12,7 +12,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 for lang in ("en", "fr", "de", "es"):
-    corpus = {r["pid"]: r for r in map(json.loads, open(HERE / ("passages.jsonl" if lang == "en" else f"passages_{lang}.jsonl"), encoding="utf-8"))}
+    corpus = {
+        r["pid"]: r
+        for r in map(json.loads, open(HERE / ("passages.jsonl" if lang == "en" else f"passages_{lang}.jsonl"), encoding="utf-8"))
+    }
     for f in sorted(glob.glob(str(HERE / "questions" / f"{lang}_*.jsonl"))):
         rows = [json.loads(x) for x in open(f, encoding="utf-8")]
         for r in rows:

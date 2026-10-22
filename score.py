@@ -89,10 +89,19 @@ LEFT = {"tokenizer_kwargs": {"padding_side": "left"}}
 QWEN_INSTRUCT = lambda t: f"Instruct: {TASK}\nQuery:{t}"  # noqa: E731  the format on the Qwen3-Embedding model card
 E5_INSTRUCT = lambda t: f"Instruct: {TASK}\nQuery: {t}"  # noqa: E731  the format on the multilingual-e5-large-instruct card
 
-# label: (cache key, function, vector size cut to). Without a cache of the real dimensions=1024 call, the 1024 row cuts and renormalizes the 3072 vectors.
+# label: (cache key, function, vector size cut to). Without a cache of the real dimensions=1024 call,
+# the 1024 row cuts and renormalizes the 3072 vectors.
 MODELS = {
-    "multilingual-e5-large-instruct (instruction on questions)": ("e5instruct", st("intfloat/multilingual-e5-large-instruct", query=E5_INSTRUCT), None),
-    "multilingual-e5-large (query:/passage: prefixes)": ("e5large", st("intfloat/multilingual-e5-large", query=lambda t: f"query: {t}", passage=lambda t: f"passage: {t}"), None),
+    "multilingual-e5-large-instruct (instruction on questions)": (
+        "e5instruct",
+        st("intfloat/multilingual-e5-large-instruct", query=E5_INSTRUCT),
+        None,
+    ),
+    "multilingual-e5-large (query:/passage: prefixes)": (
+        "e5large",
+        st("intfloat/multilingual-e5-large", query=lambda t: f"query: {t}", passage=lambda t: f"passage: {t}"),
+        None,
+    ),
     "Qwen3-Embedding-0.6B base, no instruction": ("qwen3", st("Qwen/Qwen3-Embedding-0.6B", **LEFT), None),
     "Qwen3-Embedding-0.6B base, with instruction": ("qwen3i", st("Qwen/Qwen3-Embedding-0.6B", query=QWEN_INSTRUCT, **LEFT), None),
     "Octen-0.6B original (torch, 32k context)": ("octenst", st("Octen/Octen-Embedding-0.6B", **LEFT), None),
@@ -155,11 +164,14 @@ for lang in LANGS:
         return {tuple(w[i : i + n]) for i in range(len(w) - n + 1)}
 
     # a question "overlaps" when it reuses 4 consecutive words of its passage: lexical help any model can use
-    clean = np.array([not (grams(r["question"]) & grams(corpus[g]["text"])) for r, g in zip(qs, gold)])
+    clean = np.array([not (grams(r["question"]) & grams(corpus[g]["text"])) for r, g in zip(qs, gold, strict=True)])
     q_texts = [r["question"] for r in qs]
     p_texts = [f"{r['title']}\n{r['text']}" for r in corpus]
     print(f"\n=== {lang}: {len(qs)} questions ({dropped} dropped: passage changed or gone), {len(corpus)} passages ===")
-    print(f"{has_sibling.mean():.0%} of gold passages have a sibling chunk from the same section; {short.mean():.0%} have 350 words or fewer; {clean.sum()} questions share no 4-word run with their passage")
+    print(
+        f"{has_sibling.mean():.0%} of gold passages have a sibling chunk from the same section; "
+        f"{short.mean():.0%} have 350 words or fewer; {clean.sum()} questions share no 4-word run with their passage"
+    )
     rng = np.random.default_rng(0)
     boot = rng.integers(0, len(qs), size=(1000, len(qs)))
     res, sec1 = {}, {}

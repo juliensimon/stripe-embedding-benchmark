@@ -25,6 +25,6 @@ def embed(texts, max_length=1024, batch=8):
         b = tok([texts[j] for j in idx], padding=True, truncation=True, max_length=max_length, return_tensors="mlx")
         e = model(b["input_ids"], attention_mask=b["attention_mask"]).text_embeds
         mx.eval(e)
-        for j, v in zip(idx, np.array(e.astype(mx.float32))):
+        for j, v in zip(idx, np.array(e.astype(mx.float32)), strict=True):
             out[j] = v
     return np.stack(out)

@@ -1,0 +1,7 @@
+The question files in this directory (en_*.jsonl, fr_*.jsonl, de_*.jsonl, es_*.jsonl) and PROMPT.md are licensed under
+Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+Copyright 2026 Julien Simon. Attribution: "Julien Simon, Stripe docs embedding benchmark questions, 2026".
+
+The questions were written by Claude subagents from the public Stripe documentation. The Stripe documentation itself is
+not part of this repository and remains Stripe's.

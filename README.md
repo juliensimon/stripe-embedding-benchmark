@@ -1,51 +1,69 @@
-# Does paid embedding beat a free 0.6B model on the Stripe docs?
+# Stripe docs embedding benchmark
 
-A retrieval test built from the public Stripe documentation in English, French, German and Spanish. It scores
-OpenAI `text-embedding-3-large`, `multilingual-e5-large-instruct`, `multilingual-e5-large`, Qwen3-Embedding-0.6B and
-Octen-Embedding-0.6B, and reports every gap with a 95% interval. A local demo, `./ask`, searches the docs on your machine.
+**Does paying for OpenAI embeddings beat a free 0.6B model? A retrieval test built from Stripe's public documentation in English, French, German and Spanish.**
 
-Results of the run described in the video: `results.txt` (measured 2026-10-21 on the docs fetched that day).
+On this test, nothing measurable separates `text-embedding-3-large` from free 0.6B models, and in no language could a lead for the paid model be shown. Every gap below comes with a 95% interval. The repository holds the questions, the scoring code, the raw results and a local search demo. It accompanies a YouTube video by Julien Simon.
 
-## How it works
+## Results
 
-1. `build_corpus.py` fetches the pages listed in `https://docs.stripe.com/llms.txt` as Markdown, cuts them at second-level
-   headings, and drops short, code-heavy, non-prose and duplicate pieces. The passages are public documentation owned by
-   Stripe and are not in this repository: you fetch them.
-2. `questions/` holds one question per sampled passage (en 1,000 sampled, fr, de and es 300 each, skips removed), written by
-   Claude subagents with the brief in `questions/PROMPT.md`. The writer is not one of the models under test. Each question
-   carries the URL, section and a hash of the passage it was written from.
-3. `score.py` embeds questions and passages with every model, ranks the passages for each question, and prints top-1, top-5
-   and top-10. A question counts as a hit when its source passage is among the first k. It also prints the share of top-1
-   results that land in the right section (a long section is several chunks), and the split by passage length.
-4. The gap between two models is a paired bootstrap over the questions: redraw the questions at random with repeats 1,000
-   times, compute the gap each time, read the 2.5th and 97.5th percentiles. If the interval contains zero, the test cannot
-   tell the two apart.
+Top-1 / top-5: the share of questions whose source passage comes back first / among the first five. Measured 2026-10-21 and 2026-10-22 on the Stripe docs fetched 2026-10-21 (questions: en 863, fr 251, de 271, es 241). Full output with every interval: [`results.txt`](results.txt).
+
+| Model | Max context (tokens) | en | fr | de | es |
+|---|---|---|---|---|---|
+| OpenAI text-embedding-3-large, 3072 dimensions | about 8,192 | 64.9 / 90.6 | 54.2 / 83.7 | 58.7 / 84.5 | 66.0 / 92.9 |
+| OpenAI text-embedding-3-large, `dimensions=1024` | about 8,192 | 64.2 / 88.9 | 51.0 / 83.3 | 57.2 / 84.1 | 66.0 / 90.9 |
+| multilingual-e5-large | 512 | 66.7 / 90.6 | 53.4 / 83.3 | 67.5 / 91.9 | 72.6 / 92.1 |
+| multilingual-e5-large-instruct | 512 | 60.1 / 86.8 | 51.8 / 82.9 | 57.2 / 86.0 | 63.9 / 89.6 |
+| Qwen3-Embedding-0.6B, no instruction | 32,768 | 57.8 / 85.5 | 54.6 / 81.3 | 60.1 / 85.2 | 67.6 / 91.7 |
+| Qwen3-Embedding-0.6B, card instruction | 32,768 | 64.3 / 89.6 | 50.2 / 82.1 | 57.9 / 84.5 | 63.9 / 87.1 |
+| Octen-Embedding-0.6B, original (torch) | 32,768 | 65.5 / 91.4 | 57.4 / 83.7 | 60.9 / 86.7 | 71.0 / 93.8 |
+| Octen-Embedding-0.6B, 8-bit MLX (1,024-token cap) | 32,768 | 65.9 / 91.5 | 57.8 / 85.3 | 62.4 / 87.1 | 70.5 / 93.4 |
+
+What the intervals support:
+
+- **English:** Octen, OpenAI and the plain e5-large cannot be told apart (Octen minus OpenAI 3072, top-1: -2.3 to +4.5 points). The e5-instruct model trails Octen by 2.4 to 9.5 points.
+- **Other languages:** these have about 250 questions each, so the test only rules out gaps larger than about 10 points. Within that, OpenAI never leads. In German and Spanish the plain e5-large is ahead of OpenAI 3072 (+2.6 to +15.1 and +0.8 to +13.3 at top-1).
+- **Instructions matter as much as the model:** the instruction on the Qwen3 card lifts the base model by 6.5 points in English and lowers it by about 4 points in French and Spanish.
+- **Context length does not explain e5's gap:** Octen reading only 512 tokens scores 67.8 in English, higher than at 1,024.
+- **The 8-bit conversion costs nothing measurable** against the original Octen checkpoint.
+
+## Method
+
+1. [`build_corpus.py`](build_corpus.py) fetches the pages listed in <https://docs.stripe.com/llms.txt> as Markdown, cuts them at second-level headings, and drops passages that are short, mostly code, in another language or duplicated. The passages are Stripe's documentation and are not in this repository.
+2. [`questions/`](questions) holds one question per sampled passage, written by Claude subagents with the brief in [`questions/PROMPT.md`](questions/PROMPT.md). The writer is not a model under test. Each question carries the URL, section and hash of its passage, so a passage that changed since the fetch is dropped and counted, never silently mis-scored.
+3. [`score.py`](score.py) embeds questions and passages with each model and ranks the passages for every question. A hit at k means the source passage is among the k nearest.
+4. The gap between two models is a paired bootstrap over the questions: redraw them at random with repeats 1,000 times, compute the gap each time, and read the 2.5th and 97.5th percentiles. If the interval contains zero, the test cannot tell the two models apart. Primary comparisons are every model against Octen and against OpenAI 3072; everything else is exploratory.
+
+Checks run by script: the share of gold passages with a sibling chunk from the same section, the split by passage length, and a second score on the questions that share no four-word run with their passage.
 
 ## Run it
 
-Apple silicon Mac, [uv](https://docs.astral.sh/uv/).
+Apple silicon Mac and [uv](https://docs.astral.sh/uv/).
 
 ```
-uv run python build_corpus.py          # then: fr, de, es
+uv run python build_corpus.py          # then: fr, de, es (writes pages*/ and passages*.jsonl)
 uv run python score.py en fr de es
 ./ask "Which coupon setting can I still edit after creating the coupon?" --model octen
 ```
 
-- The Stripe docs change. The question files match passages by URL, section and text hash, so a passage that changed since
-  2026-10-21 is dropped and counted in the score output. The numbers in `results.txt` come from the 2026-10-21 fetch.
-- `score.py` never calls a paid API by default. The OpenAI rows read `cache/` when it exists and are skipped otherwise;
-  `--call-openai` fetches them and costs money (about $0.13 per million tokens, roughly 4 million tokens for the four
-  languages). It reads `OPENAI_API_KEY`, `OPENAI_BASE_URL` and `EMBEDDING_MODEL` from the environment. The 1024-dimension
-  row uses the real `dimensions` parameter when its cache exists and otherwise cuts and renormalizes the 3072 vectors.
-- Octen runs as the 8-bit MLX conversion `juliensimon/Octen-Embedding-0.6B-mlx-8bit` (a community conversion, Apache 2.0)
-  and, for comparison, as the original `Octen/Octen-Embedding-0.6B` through sentence-transformers.
+- The Stripe docs change. The numbers above come from the 2026-10-21 fetch; a fresh fetch drops the questions whose passage changed, and the score output says how many.
+- `score.py` never calls a paid API by default. The OpenAI rows read `cache/` when present and are skipped otherwise. `--call-openai` fetches them, costs money (about $0.13 per million tokens, roughly 4 million tokens for the four languages) and reads `OPENAI_API_KEY`, `OPENAI_BASE_URL` and `EMBEDDING_MODEL` from the environment.
+- Octen runs as the community 8-bit MLX conversion [`juliensimon/Octen-Embedding-0.6B-mlx-8bit`](https://huggingface.co/juliensimon/Octen-Embedding-0.6B-mlx-8bit) (Apache 2.0) of [`Octen/Octen-Embedding-0.6B`](https://huggingface.co/Octen/Octen-Embedding-0.6B), and for comparison as the original through sentence-transformers.
+- `./ask` embeds one question locally and prints the closest passages from the cached vectors. No API call.
 
 ## What the test does not cover
 
-Code and tables (code-heavy chunks are dropped), reranking, keyword or hybrid search, real user queries (the questions are
-written from passages and are longer and tidier than search-box queries), and documents outside the Stripe docs.
-Qwen3-Embedding was itself trained on questions written by a language model from passages, the recipe used here.
+Code and tables (code-heavy chunks are dropped), reranking, keyword or hybrid search, real user queries (the questions are written from passages and are longer and tidier than search-box queries), server-grade builds of the models, and documents other than the Stripe docs. Qwen3-Embedding was itself trained on questions that a language model wrote from passages, the recipe used here, so this style may suit it and Octen.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `build_corpus.py`, `sample_batches.py`, `tag_questions.py` | Fetch and cut the docs, sample passages for the question writers, tag questions with their passage |
+| `questions/` | The questions and the writer's brief |
+| `score.py`, `ask.py`, `ask`, `octen_mlx.py` | Scoring, the local demo, its wrapper, the Octen loader |
+| `results.txt`, `ranks_*.json` | Raw output and per-question ranks |
 
 ## License
 
-Code: Apache 2.0. Questions and write-up: CC BY 4.0. The Stripe documentation is not included.
+Code: [Apache 2.0](LICENSE). Questions and brief: [CC BY 4.0](questions/LICENSE). The Stripe documentation is not included and remains Stripe's.
