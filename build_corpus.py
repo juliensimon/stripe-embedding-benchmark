@@ -2,8 +2,8 @@
 
 Usage: python3 build_corpus.py [lang]   lang = en (default), fr, de, es, it. Downloads once into pages[_lang]/, rerun is free.
 Stripe picks the locale from Accept-Language and falls back to French for languages it does not serve (nl, so nl is refused).
-Writes pages[_lang]/*.md and passages[_lang].jsonl {pid, url, title, section, text}. Both are gitignored copies of public docs:
-re-fetch on recording day, do not redistribute.
+Writes pages[_lang]/*.md and passages[_lang].jsonl {pid, url, title, section, text}. Both are gitignored copies of Stripe's public docs:
+the docs change, so a fresh fetch drops the questions whose passage changed. Do not redistribute them.
 """
 
 import json

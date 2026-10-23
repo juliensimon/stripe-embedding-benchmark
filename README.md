@@ -51,6 +51,7 @@ uv run pytest && uvx ruff check .     # tests and lint; no model or network call
 
 - The Stripe docs change. The numbers above come from the 2026-10-21 fetch; a fresh fetch drops the questions whose passage changed, and the score output says how many.
 - `score.py` never calls a paid API by default. The OpenAI rows read `cache/` when present and are skipped otherwise. `--call-openai` fetches them, costs money (about $0.13 per million tokens, roughly 4 million tokens for the four languages) and reads `OPENAI_API_KEY`, `OPENAI_BASE_URL` and `EMBEDDING_MODEL` from the environment.
+- My MLX conversions of Octen (all public, Apache 2.0, nine repos): [0.6B](https://huggingface.co/juliensimon/Octen-Embedding-0.6B-mlx-8bit), [4B](https://huggingface.co/juliensimon/Octen-Embedding-4B-mlx-8bit) and [8B](https://huggingface.co/juliensimon/Octen-Embedding-8B-mlx-8bit), each in bf16, 8bit and 4bit (replace `8bit` in the link). The test uses the 0.6B 8-bit one.
 - Octen runs as the community 8-bit MLX conversion [`juliensimon/Octen-Embedding-0.6B-mlx-8bit`](https://huggingface.co/juliensimon/Octen-Embedding-0.6B-mlx-8bit) (Apache 2.0) of [`Octen/Octen-Embedding-0.6B`](https://huggingface.co/Octen/Octen-Embedding-0.6B), and for comparison as the original through sentence-transformers.
 - `./ask` embeds one question locally and prints the closest passages from the cached vectors. No API call.
 
@@ -66,7 +67,7 @@ Code and tables (code-heavy chunks are dropped), reranking, keyword or hybrid se
 | `questions/` | The questions and the writer's brief |
 | `score.py`, `ask.py`, `ask`, `octen_mlx.py`, `models.py` | Scoring, the local demo, its wrapper, the Octen loader, the pinned model revisions |
 | `tests/` | Tests of the splitting, filtering, cache and paid-call guard |
-| `results.txt`, `ranks_*.json` | Raw output and per-question ranks |
+| `results.txt` | Reference output of `score.py en fr de es` (`score.py` also writes per-question ranks to `ranks_<lang>.json`, which are not tracked) |
 
 ## License
 

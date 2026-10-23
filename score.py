@@ -33,6 +33,19 @@ CALL_OPENAI = False  # set by main(); the only switch that allows a paid call
 TASK = "Given a question about Stripe documentation, retrieve the passage that answers it"
 
 
+COLOR = sys.stdout.isatty() and "NO_COLOR" not in os.environ  # colors only on a terminal, never in a redirected file
+
+
+def paint(text, code):
+    return f"\033[{code}m{text}\033[0m" if COLOR else text
+
+
+def best(values, fmt, rows):
+    """Format each value with fmt and paint the highest one among the eligible rows bold green."""
+    top = max(v for v, ok in zip(values, rows, strict=True) if ok)
+    return [paint(fmt(v), "1;32") if ok and v == top else fmt(v) for v, ok in zip(values, rows, strict=True)]
+
+
 def norm(x):
     x = np.asarray(x, dtype=np.float32)
     return x / np.linalg.norm(x, axis=1, keepdims=True)
@@ -107,6 +120,19 @@ MODELS = {
     "OpenAI 3-large at 1024": ("openai1024", openai_large(1024)),
     "OpenAI 3-large at 3072": ("openai", openai_large()),
 }
+SHORT = {  # short row names for the printed tables (the labels above stay the keys of ranks_*.json)
+    "e5instruct": "e5-large-instruct",
+    "e5large": "e5-large",
+    "qwen3": "Qwen3-0.6B, no instruction",
+    "qwen3i": "Qwen3-0.6B, instruction",
+    "octenst": "Octen original (torch)",
+    "octen": "Octen 8-bit, 1,024 tok",
+    "octen512": "Octen 8-bit, 512 tok",
+    "octenlong": "Octen 8-bit, 8,192 tok",
+    "openai1024": "OpenAI 1024 dims",
+    "openai": "OpenAI 3072 dims",
+}
+ABLATION = {"octen512", "octenlong"}  # context-length checks: printed, never highlighted
 REF = "Octen-0.6B 8-bit MLX, 1,024 tokens"
 PAID = "OpenAI 3-large at 3072"
 
@@ -185,43 +211,86 @@ def score_language(lang):
     )
     rng = np.random.default_rng(0)
     boot = rng.integers(0, len(qs), size=(1000, len(qs)))
-    res, sec1 = {}, {}
+    res, sec1, dims = {}, {}, {}
     for label, (key, fn) in MODELS.items():
         q, p = cached(lang, key, fn, q_texts, p_texts)
         if q is None:
             print(f"{label}: skipped (no cached OpenAI vectors; --call-openai fetches them and costs money)")
             continue
-        sims = q @ p.T
-        order = (-sims).argsort(1)
+        order = (-(q @ p.T)).argsort(1)
         pos = (order == gold[:, None]).argmax(1)
-        res[label] = pos
+        res[label], dims[label] = pos, q.shape[1]
         sec1[label] = np.array([order[k, 0] in sibling_sets[k] for k in range(len(qs))])
-        print(
-            f"{label:58s} top1 {np.mean(pos == 0):6.1%}  top5 {np.mean(pos < 5):6.1%}  top10 {np.mean(pos < 10):6.1%}  dim {q.shape[1]}"
-            f"  | same section top1 {sec1[label].mean():6.1%}"
-            f"  | gold <=350 words top1 {np.mean(pos[short] == 0):6.1%}, longer {np.mean(pos[~short] == 0):6.1%}"
-            f"  | no-overlap (n={clean.sum()}) top1 {np.mean(pos[clean] == 0):6.1%} top5 {np.mean(pos[clean] < 5):6.1%}"
-        )
-    print("bootstrap: the questions are redrawn at random with repeats, 1,000 times; gap (A minus B) on top-1 and top-5, 95% interval")
-    print("primary comparisons: every row against Octen 1,024 and against OpenAI 3072. Every other difference is exploratory.")
+    w = max(len(SHORT[MODELS[n][0]]) for n in res)
+    name = lambda n: SHORT[MODELS[n][0]]  # noqa: E731
+    names = list(res)
+    cols = {
+        "hit": [[np.mean(res[n] < k) for n in names] for k in (1, 5, 10)],
+        "type": [
+            [sec1[n].mean() for n in names],
+            [np.mean(res[n][short] == 0) for n in names],
+            [np.mean(res[n][~short] == 0) for n in names],
+            [np.mean(res[n][clean] == 0) for n in names],
+        ],
+    }
+    fmt = lambda wd: lambda v: f"{v:{wd}.1%}"  # noqa: E731
+    eligible = [MODELS[n][0] not in ABLATION for n in names]
+    hit = [best(c, fmt(6), eligible) for c in cols["hit"]]
+    typ = [best(c, fmt(w_), eligible) for c, w_ in zip(cols["type"], (12, 12, 7, 20), strict=True)]
+    print(
+        "\nHIT RATE: share of questions whose source passage is ranked in the first k"
+        + (" (best in green; the 512 and 8,192-token rows are context checks, not highlighted)" if COLOR else "")
+    )
+    print(f"{'':{w}s}  {'top-1':>6s} {'top-5':>6s} {'top-10':>6s} {'dim':>5s}")
+    for i, n in enumerate(names):
+        print(f"{name(n):{w}s}  {hit[0][i]} {hit[1][i]} {hit[2][i]} {dims[n]:5d}")
+    print("\nTOP-1 BY QUESTION TYPE")
+    print(f"{'':{w}s}  {'same section':>12s} {'<=350 words':>12s} {'longer':>7s} {f'no overlap (n={clean.sum()})':>20s}")
+    for i, n in enumerate(names):
+        print(f"{name(n):{w}s}  {typ[0][i]} {typ[1][i]} {typ[2][i]} {typ[3][i]}")
+
+    def gap(x, ref):
+        """(point gap, text) for top-1 and top-5: A minus B in points, bootstrap interval, * when it excludes zero."""
+        out = []
+        for k in (1, 5):
+            a, b = (res[x] < k).astype(int), (res[ref] < k).astype(int)
+            d = (a[boot] - b[boot]).mean(1)
+            lo, hi = np.percentile(d, 2.5) * 100, np.percentile(d, 97.5) * 100
+            point = (a.mean() - b.mean()) * 100
+            out.append((point, hi < 0, f"{point:+6.1f} [{lo:+5.1f},{hi:+5.1f}]{'*' if lo > 0 or hi < 0 else ' '}"))
+        return out
+
+    def gap_table(rows, skip=()):
+        """Print the rows: the largest positive gap in each column is green, a gap that is behind with an interval below zero is red."""
+        top = [max([r[1][i][0] for r in rows if r[0] not in skip] + [0]) for i in (0, 1)]
+        for label, cells in rows:
+            txt = []
+            for i, (point, behind, cell) in enumerate(cells):
+                cell = f"{cell:>22s}"
+                txt.append(
+                    paint(cell, "1;32") if point == top[i] and point > 0 and label not in skip else paint(cell, "31") if behind else cell
+                )
+            print(f"{label:{w}s}  {txt[0]}   {txt[1]}")
+
+    print("\nGAPS (A minus B, in points; 95% interval from a paired bootstrap, 1,000 redraws of the questions)")
+    print(
+        "An interval that excludes zero is marked *."
+        + (" Green: the largest gain (context-check rows excluded). Red: behind, interval below zero." if COLOR else "")
+    )
+    print("Primary comparisons: every row against Octen 1,024 and OpenAI 3072. Every other difference is exploratory.")
     for ref in (REF, PAID):
         if ref not in res:
             continue
-        for name in res:
-            if name == ref or (ref == PAID and name == REF):
-                continue
-            line = f"  {name} vs {ref}:"
-            for k in (1, 5):
-                a, b = (res[name] < k).astype(int), (res[ref] < k).astype(int)
-                d = (a[boot] - b[boot]).mean(1)
-                line += f"  top{k} [{np.percentile(d, 2.5):+.1%}, {np.percentile(d, 97.5):+.1%}]"
-            print(line)
+        print(f"\nvs {name(ref)}")
+        print(f"{'':{w}s}  {'top-1 gap':>22s}   {'top-5 gap':>22s}")
+        gap_table(
+            [(name(n), gap(n, ref)) for n in res if n != ref and not (ref == PAID and n == REF)],
+            skip={name(n) for n in res if MODELS[n][0] in ABLATION},
+        )
     if REF in res and PAID in res:
-        line = f"  {REF} vs {PAID}:"
-        for k in (1, 5):
-            d = ((res[REF] < k).astype(int)[boot] - (res[PAID] < k).astype(int)[boot]).mean(1)
-            line += f"  top{k} [{np.percentile(d, 2.5):+.1%}, {np.percentile(d, 97.5):+.1%}]"
-        print(line)
+        print(f"\n{name(REF)} vs {name(PAID)}")
+        print(f"{'':{w}s}  {'top-1 gap':>22s}   {'top-5 gap':>22s}")
+        gap_table([("", gap(REF, PAID))])
     with open(HERE / f"ranks_{lang}.json", "w") as fh:
         json.dump({n: res[n].tolist() for n in res}, fh)
 

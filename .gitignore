@@ -8,3 +8,6 @@ batches/
 results_e5large_2026-10-21.txt
 .pytest_cache/
 *.tmp
+ranks_*.json
+.ruff_cache/
+.DS_Store
