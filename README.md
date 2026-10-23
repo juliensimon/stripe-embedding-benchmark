@@ -2,7 +2,7 @@
 
 **Does paying for OpenAI embeddings beat a free 0.6B model? A retrieval test built from Stripe's public documentation in English, French, German and Spanish.**
 
-On this test, `text-embedding-3-large` shows no lead over the best free models (Octen-Embedding-0.6B and the plain multilingual-e5-large) in any of the four languages. It does lead the mismatched setups: in English over e5-instruct and over Qwen3 without its instruction, and in Spanish over instructed Qwen3 at top-5. Every gap below comes with a 95% interval. The repository holds the questions, the scoring code, the raw results and a local search demo. It accompanies a YouTube video by Julien Simon.
+On this test, `text-embedding-3-large` shows no lead over the best free models (Octen-Embedding-0.6B and the plain multilingual-e5-large) in any of the four languages. It does lead the mismatched setups: in English over e5-instruct and over Qwen3 without its instruction, and in Spanish over instructed Qwen3 at top-5. Every gap below comes with a 95% interval. The repository holds the questions, the scoring code, the raw results and a local search demo. It accompanies the YouTube video [Is OpenAI's Embedding Model Worth Paying For?](https://youtu.be/mYgYUDHaJWA) by Julien Simon.
 
 ## Results
 
